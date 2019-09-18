@@ -23,7 +23,6 @@ const server = http.createServer((req, res) => {
 	console.log('Received request: ' + raw_data.toString());
 
 	// Parse the text of the request
-  // let splitr = [];
 	let splitr = raw_data.toString().split(' ');
   let message_type = splitr[0];
   let base64_encoded_contents = splitr[1];
@@ -40,13 +39,12 @@ const server = http.createServer((req, res) => {
 
 	    // If size of the contents is less than 20, and fortune
 	    // favors ye, add to the running checksum, respond OK
-	    if (decoded_contents.length <= 20 ){//}&& Math.random() > 0.5) {
+	    if (decoded_contents.length <= 20 && Math.random() > 0.5) {
 
 		// Add each byte to the running checksum, mod 256
 		for (const value of decoded_contents.values()) {
 		    running_checksum += value;
 		    running_checksum %= 256;
-        console.log("value:", value, "     total:", running_checksum)
 		}
 
 		// Resond 'OK'
@@ -62,7 +60,6 @@ const server = http.createServer((req, res) => {
 
 	// Message type 'CHECKSUM', respond with checksum
 	} else if (message_type == 'CHECKSUM') {
-      console.log("checksum total:", running_checksum.toString(16))
 	    res.setHeader = ('Content-Type', 'text/plain');
 	    res.statusCode = 200;
 	    res.end('Checksum: 0x' + running_checksum.toString(16) + '\n');
