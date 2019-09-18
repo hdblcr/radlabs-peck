@@ -35,6 +35,7 @@ const server = http.createServer((req, res) => {
 	if (message_type == 'CHUNK:') {
 	    // Decode the base64 contents of the chunk payload
 	    let decoded_contents = Buffer.from(base64_encoded_contents, 'base64');
+      console.log(decoded_contents)
       debugger;
 
 	    // If size of the contents is less than 20, and fortune
@@ -45,6 +46,7 @@ const server = http.createServer((req, res) => {
 		for (const value of decoded_contents.values()) {
 		    running_checksum += value;
 		    running_checksum %= 256;
+        console.log("value:", value, "     total:", running_checksum)
 		}
 
 		// Resond 'OK'

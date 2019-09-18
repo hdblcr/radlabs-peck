@@ -6,18 +6,24 @@ import base64
 # set requests constants
 url = "http://localhost:3000/"
 
+
 # clean hex
 def cleanHex(rawHex):
     '''
     cleanHex takes a raw input hexadecimal and removes extraneous characters to
     return a strictly hexadecimal result.
     '''
-    hex = rawHex
+    print(rawHex, "<- hex, type of hex ->", type(rawHex))
+    hex = str(rawHex)
+    print(hex, "<- hex, type of hex ->", type(hex))
     if hex[0] == ':':
         hex = hex[1:]
     if hex[-1] == '\n':
         hex = hex[:-1]
+    hex = str.encode(hex)
+    print(hex, "<- hex, type of hex ->", type(hex))
     return hex
+
 
 # convert a line of hex to a line of base64
 def hex2b64(hex):
@@ -25,22 +31,25 @@ def hex2b64(hex):
     This function simplifies transitioning from a line of hex to the base64
     equivalent.
     '''
-    a = codecs.decode(hex, 'hex')
-    b = codecs.encode(a, 'base64')
+    hexBytes = cleanHex(hex)
+    print(hexBytes, "<- hex, type of hex ->", type(hexBytes))
+    # a = codecs.decode(hexBytes, 'hex')
+    b = codecs.encode(hexBytes, 'base64')
     c = b.decode()
     return c[:-1]
 
+
 # # Convert base 64 to hexadecimal for checksum calculations
-def b64toHex(b64):
+def b64toValue(b64):
     '''
     Takes a chunk in b64 and returns that value in decimal form.
     '''
     if b64[-1] == '\n':
         b64 = b64[:-1]
-    a = base64.b64decode(b64)
-    print(a)
-    hex = codecs.encode(a, 'hex')
-    return hex
+    b64 = str.encode(b64)
+    hex = codecs.encode(b64, 'hex')
+    return int(hex, 16)
+
 
 # send the chunk
 def sendChunk(b64):
@@ -50,6 +59,7 @@ def sendChunk(b64):
     '''
     str2send = "CHUNK: " + b64
     return requests.post(url, str2send)
+
 
 # request the checksum
 def requestChecksum():
@@ -62,17 +72,45 @@ def requestChecksum():
     # print(checksumResponse.text)
     return checksumResponse.text
 
+
 # calculate checksum of chunk
-def calcChunkChecksum(hex):
+def calcChunkChecksum222(hex):
     '''
-    calcChunkChecksum takes the data chunk in hexadecimal, and determines how much
-    the additional chunk of data would add to the full checksum. It returns
+    calcChunkChecksum takes the data chunk in hexadecimal, and determines how
+    much the additional chunk of data would add to the full checksum. It returns
     that value.
     '''
+    b64 = hex2b64(hex)
+    trialChecksum = 0
+    for i in range(len(b64)):
+        value = b64toValue(b64[i])
+        trialChecksum += value
+        trialChecksum %= 256
+        print("value:", value, "     total:",  trialChecksum)
     chunkSum = 0
     chunkSum = int(hex, 16)
     chunkSum %= 256
-    return chunkSum
+    return trialChecksum
+
+
+# calculate checksum of chunk
+def calcChunkChecksum(hex):
+    '''
+    calcChunkChecksum takes the data chunk in hexadecimal, and determines how
+    much the additional chunk of data would add to the full checksum. It returns
+    that value.
+    '''
+    trialChecksum = 0
+    hexstr = str(hex)[1:]  # convert to string, remove leading 'b'
+    print(hexstr)
+    for i in range(len(hexstr) // 2):
+        value = int(hexstr[(2 * i):(2 * i + 2)], 16)
+        trialChecksum += value
+        trialChecksum %= 256
+        print("value:", value, "     total:",  trialChecksum, "     hex[i]:",
+            hexstr[2 * i:(2 * i + 2)])
+    return trialChecksum
+
 
 # clean checksum
 def cleanChecksum(rawSum):
@@ -82,6 +120,7 @@ def cleanChecksum(rawSum):
     '''
     (preamble, sum) = rawSum.split("0x")
     return sum
+
 
 # calculate total checksum
 def calcTotalChecksum(prevTotal, hex):
@@ -93,7 +132,9 @@ def calcTotalChecksum(prevTotal, hex):
     an error, returns -1.
     '''
     newTotal = prevTotal + calcChunkChecksum(hex)
-    appChecksum = int(cleanChecksum(requestChecksum()), 16)
+    rawChecksum = requestChecksum()
+    print("Raw checksum:", rawChecksum)
+    appChecksum = int(cleanChecksum(rawChecksum), 16)
     print("Expected checksum:", newTotal, "or", prevTotal)
     print("Checksum returned:", appChecksum)
 
@@ -101,11 +142,22 @@ def calcTotalChecksum(prevTotal, hex):
     b64 = hex2b64(hex)
     if b64[-1] == '\n':
         b64 = b64[:-1]
+    # if b64[:2] != "0x":
+    #     b64 = "0x" + b64
+
+    trialChecksum = 0
+    for i in range(len(hex)):
+        trialChecksum += int(hex[i], 16)
+        trialChecksum %= 256
     # a = base64.b64decode(b64)
+    print("Trial checksum:", trialChecksum)
+
     bTotal = 0
     for char in b64:
         # bTotal += int(base64.b64decode(b64)[1:])
-        string = str('b'.append(b64toHex(b64)))
+        string = str('b' + (b64toValue(b64)))
+        print(string)
+        print(bTotal)
         bTotal += int(string)
         bTotal %= 256
         print("bTotal:", bTotal)
@@ -117,13 +169,18 @@ def calcTotalChecksum(prevTotal, hex):
     else:
         return -1
 
+
 # per chunk
-def perChunk(chunk, errors, totalChecksum, hex):
+def perChunk(chunk, errors, totalChecksum):
     '''
-    Takes a chunk no longer than 20 bytes (26 base 64 characters) long and sends it to device.
+    Takes a chunk (in hex form) no longer than 20 bytes (20 hex characters) long
+    and sends it to device.
     '''
+    # convert chunk to base 64
+    b64 = hex2b64(hex)
+
     # send the base64 chunk to the device
-    devResponse = sendChunk(chunk)
+    devResponse = sendChunk(b64)
 
     # evaluate the response from the device
     if devResponse.text == 'ERROR PROCESSING CONTENTS\n':
@@ -157,35 +214,36 @@ def main():
         hex = cleanHex(hex)
 
         # convert hex to base64
-        b64 = hex2b64(hex)
+        # b64 = hex2b64(hex)
 
         # divide into chunks
         chunks = []
-        while len(b64) > 26:
-            chunks.append(b64[:26])
-            b64 = b64[26:]
+        while len(hex) > 20:
+            chunks.append(hex[:20])
+            hex = hex[20:]
 
-        if len(b64) > 0:
-            chunks.append(b64)
+        if len(hex) > 0:
+            chunks.append(hex)
 
         # do per chunk
         for chunk in chunks:
-            perChunk(chunk, errors, totalChecksum, hex)
+            perChunk(chunk, errors, totalChecksum)
 
     # return results
     if errors[0]:
-        print("A checksum error has occurred. Device should not install firmware.")
+        print("A checksum error has occurred. Device should not install",
+            "firmware.")
     elif errors[1]:
         print("At least one chunk of data was not correctly processed. Device",
         " should not install firmware.")
     elif errors[2]:
         print("At one point, there was an unexpected response from the device.",
-        " The device should not install firmware, and additional investigaton",
-        " may be required.")
+        "The device should not install firmware, and additional investigaton",
+        "may be required.")
     else:
         print("Checksum confirms successful transmission. It is safe to install firmware.")
 
-
+    # close file
     f.close()
 
 
