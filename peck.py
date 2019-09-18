@@ -72,26 +72,6 @@ def requestChecksum():
 
 
 # calculate checksum of chunk
-def calcChunkChecksum222(hexx):
-    '''
-    calcChunkChecksum takes the data chunk in hexadecimal, and determines how
-    much the additional chunk of data would add to the full checksum. It returns
-    that value.
-    '''
-    b64 = hex2b64(hexx)
-    trialChecksum = 0
-    for i in range(len(b64)):
-        value = b64toValue(b64[i])
-        trialChecksum += value
-        trialChecksum %= 256
-        print("value:", value, "     total:",  trialChecksum)
-    chunkSum = 0
-    chunkSum = int(hexx, 16)
-    chunkSum %= 256
-    return trialChecksum
-
-
-# calculate checksum of chunk
 def calcChunkChecksum(hexx, total):
     '''
     calcChunkChecksum takes the data chunk in hexadecimal, and determines how
@@ -105,8 +85,8 @@ def calcChunkChecksum(hexx, total):
         value = ord(hexstr[i])
         total += value
         total %= 256
-        print("value:", value, "     total:",  total, "     hexx[i]:",
-              hexstr[i])
+        # print("value:", value, "     total:",  total, "     hexx[i]:",
+        #       hexstr[i])
     return total
 
 
@@ -185,9 +165,11 @@ def perChunk(chunk, errors, totalChecksum):
     devResponse = sendChunk(b64)
 
     # evaluate the response from the device
-    if devResponse.text == 'ERROR PROCESSING CONTENTS\n':
-        errors[1] = True
-    elif devResponse.text != 'OK\n':
+    while devResponse.text == 'ERROR PROCESSING CONTENTS\n':
+        # print("================ERROR PROCESSING CONTENTS=============")
+        # errors[1] = True
+        devResponse = sendChunk(b64)
+    if devResponse.text != 'OK\n':
         errors[2] = True
 
     # calculate the total checksum, since there is probability involved in

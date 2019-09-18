@@ -40,7 +40,7 @@ const server = http.createServer((req, res) => {
 
 	    // If size of the contents is less than 20, and fortune
 	    // favors ye, add to the running checksum, respond OK
-	    if (decoded_contents.length <= 20 && Math.random() > 0.5) {
+	    if (decoded_contents.length <= 20 ){//}&& Math.random() > 0.5) {
 
 		// Add each byte to the running checksum, mod 256
 		for (const value of decoded_contents.values()) {
