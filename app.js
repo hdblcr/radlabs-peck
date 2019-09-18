@@ -40,7 +40,7 @@ const server = http.createServer((req, res) => {
 
 	    // If size of the contents is less than 20, and fortune
 	    // favors ye, add to the running checksum, respond OK
-	    if (decoded_contents.length <= 20){// && Math.random() > 0.5) {
+	    if (decoded_contents.length <= 20 && Math.random() > 0.5) {
 
 		// Add each byte to the running checksum, mod 256
 		for (const value of decoded_contents.values()) {
@@ -62,6 +62,7 @@ const server = http.createServer((req, res) => {
 
 	// Message type 'CHECKSUM', respond with checksum
 	} else if (message_type == 'CHECKSUM') {
+      console.log("checksum total:", running_checksum.toString(16))
 	    res.setHeader = ('Content-Type', 'text/plain');
 	    res.statusCode = 200;
 	    res.end('Checksum: 0x' + running_checksum.toString(16) + '\n');
